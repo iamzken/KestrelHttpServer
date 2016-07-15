@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -16,7 +15,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
-using Microsoft.AspNetCore.Testing;
 using Microsoft.AspNetCore.Testing.xunit;
 using Microsoft.Extensions.Logging.Testing;
 using Newtonsoft.Json;
@@ -243,25 +241,9 @@ namespace Microsoft.AspNetCore.Server.Kestrel.FunctionalTests
                     {
                         await context.Request.Body.ReadAsync(new byte[1], 0, 1);
                     }
-                    catch (BadHttpRequestException)
-                    {
-                        // We need this here because BadHttpRequestException derives from IOException,
-                        // and we're looking for an actual IOException.
-                    }
                     catch (IOException ex)
                     {
-                        // This is one of two exception types that might thrown in this scenario.
-                        // An IOException is thrown if ReadAsync is awaiting on SocketInput when
-                        // the connection is aborted.
                         expectedExceptionThrown = ex.InnerException is UvException;
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // This is the other exception type that might be thrown here.
-                        // A TaskCanceledException is thrown if ReadAsync is called when the
-                        // connection has already been aborted, since FrameRequestStream is
-                        // aborted and returns a canceled task from ReadAsync.
-                        expectedExceptionThrown = true;
                     }
 
                     appDone.Release();
