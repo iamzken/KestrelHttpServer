@@ -101,14 +101,16 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
                 _log.LogError(0, null, "Waiting for connections timed out");
             }
 
-            // REVIEW: Should we use the timeout?
-            PostAsync(state =>
-            {
-                var listener = (KestrelThread)state;
-                var writeReqPool = listener.WriteReqPool;
-                writeReqPool.Dispose();
+            if (!PostAsync(state =>
+             {
+                 var listener = (KestrelThread)state;
+                 var writeReqPool = listener.WriteReqPool;
+                 writeReqPool.Dispose();
 
-            }, this).Wait(timeout);
+             }, this).Wait(timeout))
+            {
+                _log.LogError(0, null, "Disposing the write request pool timed out");
+            }
 
             Memory.Dispose();
 

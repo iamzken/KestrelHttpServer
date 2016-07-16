@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
 
 namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
@@ -11,8 +9,9 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
         private const int _maxPooledWriteReqs = 1024;
 
         private readonly KestrelThread _thread;
-        private Queue<UvWriteReq> _pool = new Queue<UvWriteReq>(_maxPooledWriteReqs);
+        private readonly Queue<UvWriteReq> _pool = new Queue<UvWriteReq>(_maxPooledWriteReqs);
         private readonly IKestrelTrace _log;
+        private bool _disposed;
 
         public WriteRequestPool(KestrelThread thread, IKestrelTrace log)
         {
@@ -22,6 +21,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
 
         public UvWriteReq Allocate()
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(GetType().Name);
+            }
+
             UvWriteReq req;
             if (_pool.Count > 0)
             {
@@ -38,6 +42,11 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
 
         public void Return(UvWriteReq req)
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(GetType().Name);
+            }
+
             if (_pool.Count < _maxPooledWriteReqs)
             {
                 _pool.Enqueue(req);
@@ -50,9 +59,14 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
 
         public void Dispose()
         {
-            while (_pool.Count > 0)
+            if (!_disposed)
             {
-                _pool.Dequeue().Dispose();
+                _disposed = true;
+
+                while (_pool.Count > 0)
+                {
+                    _pool.Dequeue().Dispose();
+                }
             }
         }
     }
