@@ -101,16 +101,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
                 _log.LogError(0, null, "Waiting for connections timed out");
             }
 
-            if (!PostAsync(state =>
-             {
-                 var listener = (KestrelThread)state;
-                 var writeReqPool = listener.WriteReqPool;
-                 writeReqPool.Dispose();
-
-             }, this).Wait(timeout))
+            PostAsync(state =>
             {
-                _log.LogError(0, null, "Disposing the write request pool timed out");
-            }
+                var listener = (KestrelThread)state;
+                var writeReqPool = listener.WriteReqPool;
+                writeReqPool.Dispose();
+
+            }, this).Wait();
 
             Memory.Dispose();
 
