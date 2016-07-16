@@ -21,11 +21,13 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
             _threadPool = threadPool;
         }
 
-        public void WalkConnectionsAndClose()
+        public bool WalkConnectionsAndClose(TimeSpan timeout)
         {
             var wh = new ManualResetEventSlim();
+
             _thread.Post(state => ((ConnectionManager)state).WalkConnectionsAndCloseCore(wh), this);
-            wh.Wait();
+
+            return wh.Wait(timeout);
         }
 
         private void WalkConnectionsAndCloseCore(ManualResetEventSlim wh)

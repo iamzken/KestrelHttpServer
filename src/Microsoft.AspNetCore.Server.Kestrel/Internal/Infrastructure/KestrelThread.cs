@@ -19,8 +19,6 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
     /// </summary>
     public class KestrelThread
     {
-        public const int MaxPooledWriteReqs = 1024;
-
         // maximum times the work queues swapped and are processed in a single pass
         // as completing a task may immediately have write data to put on the network
         // otherwise it needs to wait till the next pass of the libuv loop
@@ -64,7 +62,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
             QueueCloseHandle = PostCloseHandle;
             QueueCloseAsyncHandle = EnqueueCloseHandle;
             Memory = new MemoryPool();
-            WriteReqPool = new Queue<UvWriteReq>(MaxPooledWriteReqs);
+            WriteReqPool = new WriteRequestPool(this, _log);
             ConnectionManager = new ConnectionManager(this, _threadPool);
         }
 
@@ -74,7 +72,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 
         public ConnectionManager ConnectionManager { get; }
 
-        public Queue<UvWriteReq> WriteReqPool { get; }
+        public WriteRequestPool WriteReqPool { get; }
 
         public ExceptionDispatchInfo FatalError { get { return _closeError; } }
 
@@ -98,18 +96,19 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
         public void Stop(TimeSpan timeout)
         {
             // Close and wait for all connections
-            ConnectionManager.WalkConnectionsAndClose();
+            if (!ConnectionManager.WalkConnectionsAndClose(timeout))
+            {
+                _log.LogError(0, null, "Waiting for connections timed out");
+            }
 
             // REVIEW: Should we use the timeout?
             PostAsync(state =>
             {
                 var listener = (KestrelThread)state;
                 var writeReqPool = listener.WriteReqPool;
-                while (writeReqPool.Count > 0)
-                {
-                    writeReqPool.Dequeue().Dispose();
-                }
-            }, this).Wait();
+                writeReqPool.Dispose();
+
+            }, this).Wait(timeout);
 
             Memory.Dispose();
 

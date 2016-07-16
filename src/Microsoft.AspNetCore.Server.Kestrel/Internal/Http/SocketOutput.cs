@@ -55,7 +55,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         private WriteContext _nextWriteContext;
         private readonly Queue<WaitingTask> _tasksPending;
         private readonly Queue<WriteContext> _writeContextPool;
-        private readonly Queue<UvWriteReq> _writeReqPool;
+        private readonly WriteRequestPool _writeReqPool;
 
         public SocketOutput(
             KestrelThread thread,
@@ -580,15 +580,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
                 var lockedEndBlock = _lockedEnd.Block;
                 var lockedEndIndex = _lockedEnd.Index;
 
-                if (Self._writeReqPool.Count > 0)
-                {
-                    _writeReq = Self._writeReqPool.Dequeue();
-                }
-                else
-                {
-                    _writeReq = new UvWriteReq(Self._log);
-                    _writeReq.Init(Self._thread.Loop);
-                }
+                _writeReq = Self._writeReqPool.Allocate();
 
                 _writeReq.Write(Self._socket, _lockedStart, _lockedEnd, _bufferCount, (_writeReq, status, error, state) =>
                 {
@@ -686,14 +678,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
 
             private void PoolWriteReq(UvWriteReq writeReq)
             {
-                if (Self._writeReqPool.Count < KestrelThread.MaxPooledWriteReqs)
-                {
-                    Self._writeReqPool.Enqueue(writeReq);
-                }
-                else
-                {
-                    writeReq.Dispose();
-                }
+                Self._writeReqPool.Return(writeReq);
             }
 
             private void ScheduleReturnFullyWrittenBlocks()
