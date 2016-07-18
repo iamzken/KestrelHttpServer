@@ -62,7 +62,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
             QueueCloseHandle = PostCloseHandle;
             QueueCloseAsyncHandle = EnqueueCloseHandle;
             Memory = new MemoryPool();
-            WriteReqPool = new WriteRequestPool(this, _log);
+            WriteReqPool = new WriteReqPool(this, _log);
             ConnectionManager = new ConnectionManager(this, _threadPool);
         }
 
@@ -72,7 +72,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 
         public ConnectionManager ConnectionManager { get; }
 
-        public WriteRequestPool WriteReqPool { get; }
+        public WriteReqPool WriteReqPool { get; }
 
         public ExceptionDispatchInfo FatalError { get { return _closeError; } }
 
@@ -95,21 +95,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
 
         public void Stop(TimeSpan timeout)
         {
-            // Close and wait for all connections
-            if (!ConnectionManager.WalkConnectionsAndClose(timeout))
-            {
-                _log.LogError(0, null, "Waiting for connections timed out");
-            }
-
-            PostAsync(state =>
-            {
-                var listener = (KestrelThread)state;
-                var writeReqPool = listener.WriteReqPool;
-                writeReqPool.Dispose();
-
-            }, this).Wait();
-
-            Memory.Dispose();
+            DisposeConnections(timeout);
 
             lock (_startSync)
             {
@@ -148,6 +134,29 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal
             if (_closeError != null)
             {
                 _closeError.Throw();
+            }
+        }
+
+        private void DisposeConnections(TimeSpan timeout)
+        {
+            try
+            {
+                // Close and wait for all connections
+                if (!ConnectionManager.WalkConnectionsAndClose(timeout))
+                {
+                    _log.LogError(0, null, "Waiting for connections timed out");
+                }
+
+                PostAsync(state =>
+                {
+                    var listener = (KestrelThread)state;
+                    listener.WriteReqPool.Dispose();
+                },
+                this).Wait();
+            }
+            finally
+            {
+                Memory.Dispose();
             }
         }
 

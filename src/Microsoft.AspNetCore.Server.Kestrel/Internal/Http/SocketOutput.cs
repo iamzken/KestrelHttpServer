@@ -55,7 +55,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Http
         private WriteContext _nextWriteContext;
         private readonly Queue<WaitingTask> _tasksPending;
         private readonly Queue<WriteContext> _writeContextPool;
-        private readonly WriteRequestPool _writeReqPool;
+        private readonly WriteReqPool _writeReqPool;
 
         public SocketOutput(
             KestrelThread thread,

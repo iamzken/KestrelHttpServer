@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
 
 namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
 {
-    public class WriteRequestPool
+    public class WriteReqPool
     {
         private const int _maxPooledWriteReqs = 1024;
 
@@ -13,7 +13,7 @@ namespace Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure
         private readonly IKestrelTrace _log;
         private bool _disposed;
 
-        public WriteRequestPool(KestrelThread thread, IKestrelTrace log)
+        public WriteReqPool(KestrelThread thread, IKestrelTrace log)
         {
             _thread = thread;
             _log = log;
